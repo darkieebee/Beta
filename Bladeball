@@ -1,0 +1,226 @@
+local _q1z = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+local _w2x = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
+local _e3c = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+
+local _wnd = _q1z:CreateWindow({
+    Title = "Void Hub",
+    SubTitle = "by Darkiee",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(500, 400),
+    Acrylic = true,
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.LeftControl
+})
+
+local _tbs = {
+    _mn = _wnd:AddTab({ Title = "Main", Icon = "swords" }),
+    _st = _wnd:AddTab({ Title = "Settings", Icon = "settings" })
+}
+
+local _opt = _q1z.Options
+
+local _rsv = game:GetService("RunService")
+local _pls = game:GetService("Players")
+local _uis = game:GetService("UserInputService")
+local _vim = game:GetService("VirtualInputManager")
+local _plr = _pls.LocalPlayer
+
+local _xap = false
+local _pcn1, _pcn2
+local _xas = false
+local _scn
+local _bdt = {}
+local _mps = Vector2.new(0, 0)
+
+local function _fgb()
+    local _bls = {}
+    for _, _itm in ipairs(workspace.Balls:GetChildren()) do
+        if _itm:GetAttribute("realBall") then
+            table.insert(_bls, _itm)
+        end
+    end
+    return _bls
+end
+
+local function _rstp()
+    if _pcn1 then _pcn1:Disconnect() _pcn1 = nil end
+    if _pcn2 then _pcn2:Disconnect() _pcn2 = nil end
+    for _, _dt in pairs(_bdt) do
+        if _dt._pcon then _dt._pcon:Disconnect() end
+    end
+    _bdt = {}
+end
+
+local function _bndp(_bl)
+    if not _bdt[_bl] then
+        _bdt[_bl] = {
+            _isp = false,
+            _cld = 0,
+            _lvel = Vector3.new(0,0,0),
+            _lpos = Vector3.new(0,0,0),
+            _lacc = Vector3.new(0,0,0),
+            _pcon = nil
+        }
+    end
+    if _bdt[_bl]._pcon then
+        _bdt[_bl]._pcon:Disconnect()
+    end
+    _bdt[_bl]._pcon = _bl:GetAttributeChangedSignal("target"):Connect(function()
+        _bdt[_bl]._isp = false
+        _bdt[_bl]._cld = 0
+        _bdt[_bl]._lvel = Vector3.new(0,0,0)
+        _bdt[_bl]._lpos = Vector3.new(0,0,0)
+        _bdt[_bl]._lacc = Vector3.new(0,0,0)
+    end)
+end
+
+local function _chkbl(_bl)
+    if not _bdt[_bl] then
+        _bndp(_bl)
+    end
+    local _dt = _bdt[_bl]
+    if _bl.Anchored or not _bl:FindFirstChild("zoomies") then
+        return nil
+    end
+    local _pos = _bl.Position
+    local _vel = _bl.zoomies.VectorVelocity
+    local _spd = _vel.Magnitude
+    if _spd < 0.5 then
+        return nil
+    end
+    return {_pos = _pos, _vel = _vel, _spd = _spd, _dt = _dt}
+end
+
+local function _prybl(_hrp, _dlt)
+    local _bpr = {}
+    for _, _bl in ipairs(_fgb()) do
+        local _r = _chkbl(_bl)
+        if not _r then continue end
+        local _pos, _vel, _spd, _dt = _r._pos, _r._vel, _r._spd, _r._dt
+        local _acc = (_vel - _dt._lvel) / _dlt
+        local _vun = _vel.Unit
+        local _tac = _acc:Dot(_vun)
+        local _nac = _acc - _tac * _vun
+        local _nam = _nac.Magnitude
+        local _cmr = _nam / _spd
+        local _t = math.clamp(_cmr / 10, 0, 1)
+        local _bth = 0.45 - 0.1 * _t
+        _dt._lvel = _vel
+        _dt._lpos = _pos
+        local _png = _plr:GetNetworkPing() * 1000
+        local _pf = math.clamp(_png / 1000, 0, 0.15)
+        local _dth = _bth + _pf * 0.15
+        _dth = _dth * (1 - math.clamp(_spd / 350, 0, 0.3))
+        local _ttg = _hrp.Position - _pos
+        local _fwd = _vun
+        local _fdt = _ttg:Dot(_fwd)
+        local _tth = _fdt / _spd
+        local _prd = _pos + _vel * _tth + 0.5 * _acc * _tth * _tth
+        local _dpr = (_hrp.Position - _prd).Magnitude
+        if _dpr > 30 then
+            continue
+        end
+        if _bl:GetAttribute("target") == _plr.Name and not _dt._isp and _tth >= 0.1 and _tth <= _dth then
+            table.insert(_bpr, { _bl = _bl, _dt = _dt })
+        end
+    end
+    return _bpr
+end
+
+local function _stpr()
+    _rstp()
+    for _, _bl in ipairs(_fgb()) do
+        _bndp(_bl)
+    end
+    _pcn2 = workspace.Balls.ChildAdded:Connect(function(_ch)
+        if not _xap then return end
+        if _ch:GetAttribute("realBall") then
+            _bndp(_ch)
+        end
+    end)
+    _pcn1 = _rsv.Heartbeat:Connect(function(_dlt)
+        if not _xap then return end
+        local _hrp = _plr.Character and _plr.Character:FindFirstChild("HumanoidRootPart")
+        if not _hrp then return end
+        local _bpr = _prybl(_hrp, _dlt)
+        if #_bpr > 0 then
+            local _spos = Vector2.new(_mps.X, _mps.Y)
+            for _i = 1, #_bpr do
+                _vim:SendMouseButtonEvent(_spos.X, _spos.Y, 0, true, game, 0)
+                _vim:SendMouseButtonEvent(_spos.X, _spos.Y, 0, false, game, 0)
+            end
+            for _, _pi in ipairs(_bpr) do
+                local _dt = _pi._dt
+                _dt._isp = true
+                _dt._cld = tick()
+            end
+        end
+        for _, _bl in ipairs(_fgb()) do
+            local _dt = _bdt[_bl]
+            if _dt and tick() - _dt._cld >= 0.5 then
+                _dt._isp = false
+            end
+        end
+    end)
+end
+
+local function _stsp()
+    if _scn then _scn:Disconnect() _scn = nil end
+    local _lct = 0
+    local _ccd = 0.05
+    _scn = _rsv.Heartbeat:Connect(function()
+        if not _xas then return end
+        if tick() - _lct >= _ccd then
+            _vim:SendMouseButtonEvent(_mps.X, _mps.Y, 0, true, game, 0)
+            _vim:SendMouseButtonEvent(_mps.X, _mps.Y, 0, false, game, 0)
+            _lct = tick()
+        end
+    end)
+end
+
+_uis.InputChanged:Connect(function(_inp)
+    if _inp.UserInputType == Enum.UserInputType.MouseMovement then
+        _mps = _inp.Position
+    end
+end)
+
+local _sct = _tbs._mn:AddSection("Auto Controls")
+_tbs._mn:AddToggle("AutoParry", { Title = "Auto Parry", Default = false }):OnChanged(function()
+    _xap = _opt.AutoParry.Value
+    if _xap then
+        _stpr()
+        _q1z:Notify({ Title = "Slavan Hub", Content = "Auto Parry Enabled", Duration = 2 })
+    else
+        _rstp()
+    end
+end)
+
+_tbs._mn:AddKeybind("AutoSpamBind", {
+    Title = "Auto Spam Toggle",
+    Description = "Toggles auto spam on/off",
+    Mode = "Toggle",
+    Default = "E",
+    Callback = function(_val)
+        _xas = _val
+        if _xas then
+            _stsp()
+            _q1z:Notify({ Title = "voidHub", Content = "Auto Spam Enabled", Duration = 2 })
+        else
+            if _scn then _scn:Disconnect() _scn = nil end
+            _q1z:Notify({ Title = "Slavan Hub", Content = "Auto Spam Disabled", Duration = 2 })
+        end
+    end
+})
+
+_w2x:SetLibrary(_q1z)
+_e3c:SetLibrary(_q1z)
+_w2x:IgnoreThemeSettings()
+_w2x:SetIgnoreIndexes({})
+_e3c:SetFolder("SlavanHub")
+_w2x:SetFolder("VoidHub/BladeBall")
+_e3c:BuildInterfaceSection(_tbs._st)
+_w2x:BuildConfigSection(_tbs._st)
+
+_wnd:SelectTab(1)
+_q1z:Notify({ Title = "Void Hub", Content = "Script Loaded", Duration = 3 })
+_w2x:LoadAutoloadConfig()
